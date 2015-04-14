@@ -57,8 +57,9 @@ public class AlbumMessageHandler {
 	 */
 	@GET
 	@Path("/photos")
-	public Response getUserAlbumPhotos(@QueryParam("usr") String userkey) {
-		List<PhotoDTO> photos = albumBean.fetchUserAlbumPhotos(1, 1);
+	public Response getUserAlbumPhotos(@QueryParam("usr") String userkey,
+			@QueryParam("albumid") long albumid) {
+		List<PhotoDTO> photos = albumBean.fetchUserAlbumPhotos(1, albumid);
 		String output = generatePhotoJSON(photos);
 		return Response.status(200).entity(output).build();
 	}
@@ -126,6 +127,7 @@ public class AlbumMessageHandler {
 				JSONObject albumJSON = new JSONObject();
 				albumJSON.put("id", album.getId());
 				albumJSON.put("name", album.getName());
+				albumJSON.put("subtitle", album.getSubtitle());
 				albumJSON.put("coverId", album.getCoverId());
 				albumsJSON.put(albumJSON);
 			}
