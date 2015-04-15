@@ -89,7 +89,16 @@ public class AlbumMessageHandler {
 			return rawTag.split(",");
 		return new String[0];
 	}
-
+	
+	@GET
+	@Path("/thumbnail")
+	public Response getUserAlbumThumbnail(@QueryParam("usr") String userkey,
+			@QueryParam("photoid") int photoId) {
+		byte[] imageByteArray = albumBean.fetchPhotoThumbnailData(1, photoId, 0);
+		String output = Base64.encodeBase64URLSafeString(imageByteArray);
+		return Response.status(200).entity(output).build();
+	}
+	
 	@GET
 	@Path("/image")
 	public Response getUserAlbumPhoto(@QueryParam("usr") String userkey,
