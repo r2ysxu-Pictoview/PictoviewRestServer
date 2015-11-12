@@ -1,10 +1,10 @@
 package com.viewer.rest;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
+import javax.imageio.stream.ImageInputStream;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
@@ -18,6 +18,7 @@ import org.json.JSONObject;
 import com.viewer.beans.AlbumBeanLocal;
 import com.viewer.dto.AlbumDTO;
 import com.viewer.dto.PhotoDTO;
+import com.viewer.model.SearchQuery;
 
 @Path("/viewer")
 public class AlbumMessageHandler {
@@ -25,13 +26,7 @@ public class AlbumMessageHandler {
 	AlbumBeanLocal albumBean;
 
 	public AlbumMessageHandler() {
-		try {
-			Context c = new InitialContext();
-			albumBean = (AlbumBeanLocal) c
-					.lookup("java:global/PictureViewerEAR/PictureViewerEJB/AlbumBean!com.viewer.beans.AlbumBeanLocal");
-		} catch (NamingException e1) {
-			e1.printStackTrace();
-		}
+		albumBean = BeanManager.getAlbumBeanLocal();
 	}
 
 	/**
@@ -42,9 +37,9 @@ public class AlbumMessageHandler {
 	 */
 	@GET
 	@Path("/albums")
-	public Response getUserAlbums(@QueryParam("usr") String userkey) {
+	public Response getUserAlbums(@QueryParam("usr") String userkey, @QueryParam("parent") long parentId) {
 
-		List<AlbumDTO> albums = albumBean.fetchAllUserAlbums(1);
+		List<AlbumDTO> albums = albumBean.fetchAllUserAlbums(1, parentId);
 		String output = generateAlbumJSON(albums);
 		return Response.status(200).entity(output).build();
 	}
@@ -57,8 +52,7 @@ public class AlbumMessageHandler {
 	 */
 	@GET
 	@Path("/photos")
-	public Response getUserAlbumPhotos(@QueryParam("usr") String userkey,
-			@QueryParam("albumid") long albumid) {
+	public Response getUserAlbumPhotos(@QueryParam("usr") String userkey, @QueryParam("albumid") long albumid) {
 		List<PhotoDTO> photos = albumBean.fetchUserAlbumPhotos(1, albumid);
 		String output = generatePhotoJSON(photos);
 		return Response.status(200).entity(output).build();
@@ -74,37 +68,47 @@ public class AlbumMessageHandler {
 	 */
 	@GET
 	@Path("/search/albums")
-	public Response getUserSearchAlbums(@QueryParam("usr") String userkey,
-			@QueryParam("name") String searchValue,
-			@QueryParam("tag") String searchTags,
-			@QueryParam("cateid") String categoryIds) {
-		List<AlbumDTO> albums = albumBean.fetchSearchedUserAlbums(1,
-				searchValue, parseTags(searchTags));
+	public Response getUserSearchAlbums(@QueryParam("usr") String userkey, @QueryParam("name") String searchValue,
+			@QueryParam("tag") String searchTags, @QueryParam("cateid") String categoryIds) {
+
+		List<String> names = Arrays.asList(searchValue.split(" "));
+
+		SearchQuery searchQuery = new SearchQuery(names);
+
+		List<AlbumDTO> albums = albumBean.fetchSearchedUserAlbums(1, searchQuery.toSearchQueryDTO());
 		String output = generateAlbumJSON(albums);
 		return Response.status(200).entity(output).build();
 	}
 
-	private String[] parseTags(String rawTag) {
-		if (rawTag != null)
-			return rawTag.split(",");
-		return new String[0];
-	}
-	
 	@GET
 	@Path("/thumbnail")
-	public Response getUserAlbumThumbnail(@QueryParam("usr") String userkey,
-			@QueryParam("photoid") int photoId) {
-		byte[] imageByteArray = albumBean.fetchPhotoThumbnailData(1, photoId, 0);
-		String output = Base64.encodeBase64URLSafeString(imageByteArray);
+	public Response getUserAlbumThumbnail(@QueryParam("usr") String userkey, @QueryParam("photoid") int photoId) {
+		ImageInputStream imageStream = albumBean.fetchPhotoThumbnailData(1, photoId);
+		String output = "";
+		try {
+			byte[] bytes = new byte[1024];
+			while (imageStream.read(bytes) >= 0) {
+				output = Base64.encodeBase64URLSafeString(bytes);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		return Response.status(200).entity(output).build();
 	}
-	
+
 	@GET
 	@Path("/image")
-	public Response getUserAlbumPhoto(@QueryParam("usr") String userkey,
-			@QueryParam("photoid") int photoId) {
-		byte[] imageByteArray = albumBean.fetchPhotoData(1, photoId);
-		String output = Base64.encodeBase64URLSafeString(imageByteArray);
+	public Response getUserAlbumPhoto(@QueryParam("usr") String userkey, @QueryParam("photoid") int photoId) {
+		ImageInputStream imageStream = albumBean.fetchPhotoData(1, photoId);
+		String output = "";
+		try {
+			byte[] bytes = new byte[1024];
+			while (imageStream.read(bytes) >= 0) {
+				output = Base64.encodeBase64URLSafeString(bytes);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		return Response.status(200).entity(output).build();
 	}
 
